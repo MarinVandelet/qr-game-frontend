@@ -2,168 +2,128 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { FiCopy } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import io from "socket.io-client";
 
 const socket = io("https://qr-game-backend.onrender.com");
 
 export default function WaitingRoom() {
-  const navigate = useNavigate();
-  const code = window.location.pathname.split("/").pop();
+  const { code } = useParams();
 
   const [players, setPlayers] = useState([]);
   const [ownerId, setOwnerId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const playerId = Number(localStorage.getItem("playerId"));
+  const navigate = useNavigate();
 
-  // Charger les joueurs depuis l’API (polling)
+  // 🔥 IMPORTANT : rejoindre le salon via WebSocket
+  useEffect(() => {
+    if (!code) return;
+
+    socket.emit("joinRoom", code);
+  }, [code]);
+
+  // Charger les joueurs
   const fetchPlayers = async () => {
     try {
       const res = await axios.get(
         `https://qr-game-backend.onrender.com/api/room/players/${code}`
       );
+
       setPlayers(res.data.players || []);
       setOwnerId(res.data.ownerId);
-      setLoading(false);
     } catch (err) {
       console.error(err);
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  // Fetch toutes les 1.5s
   useEffect(() => {
     fetchPlayers();
+
     const interval = setInterval(fetchPlayers, 1500);
     return () => clearInterval(interval);
   }, []);
 
-  // Connexion au salon Socket.io
-  useEffect(() => {
-    socket.emit("joinRoom", code);
+  const isOwner = ownerId === playerId;
 
-    // Le serveur lance la partie (tous les joueurs sont redirigés)
-    socket.on("gameStart", () => {
-      navigate(`/game/${code}`);
-    });
-
-    return () => {
-      socket.off("gameStart");
-    };
-  }, [code, navigate]);
-
-  const isOwner = ownerId && playerId === ownerId;
-
-  // Le chef lance la partie
   const handleStart = () => {
     socket.emit("startGame", code);
+    navigate(`/game/${code}`);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-300 to-blue-950 flex items-center justify-center p-4 text-white">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md text-center"
       >
-        <p className="uppercase tracking-[0.2em] text-sm opacity-80">
-          Salon
-        </p>
-        <h1 className="text-3xl font-extrabold mb-2 mt-1">
-          Salle d&apos;attente
-        </h1>
+        <p className="uppercase tracking-[0.2em] text-sm opacity-80">Salon</p>
+        <h1 className="text-3xl font-extrabold mb-4">Salle d'attente</h1>
 
-        {/* Code + copie */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full mt-2 mb-6">
+        {/* CODE + COPY */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full mb-6">
           <span className="text-sm opacity-80">Code</span>
+          <p className="font-mono text-lg bg-white text-blue-900 px-3 py-1 rounded-full">
+            {code}
+          </p>
 
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-lg tracking-[0.3em] bg-white text-blue-900 px-3 py-1 rounded-full">
-              {code}
-            </span>
-
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigator.clipboard.writeText(code)}
-              className="bg-white text-blue-900 p-2 rounded-lg shadow hover:bg-blue-100 flex items-center justify-center"
-              title="Copier le code"
-            >
-              <FiCopy size={22} />
-            </motion.button>
-          </div>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigator.clipboard.writeText(code)}
+            className="bg-white text-blue-900 p-2 rounded-lg shadow hover:bg-blue-100"
+            title="Copier"
+          >
+            <FiCopy size={20} />
+          </motion.button>
         </div>
 
-        {/* Chargement */}
-        {loading && (
-          <p className="mt-4 opacity-80">Chargement des joueurs...</p>
-        )}
+        <h2 className="text-xl font-semibold mb-3">Joueurs connectés</h2>
 
-        {/* Liste des joueurs */}
-        {!loading && (
-          <>
-            <h2 className="mt-4 text-xl font-semibold mb-3">
-              Joueurs connectés
-            </h2>
+        <div className="space-y-2">
+          {players.length === 0 && (
+            <p className="opacity-70 text-sm">En attente des joueurs…</p>
+          )}
 
-            <div className="mt-2 space-y-2">
-              {players.length === 0 && (
-                <p className="opacity-70 text-sm">
-                  En attente des premiers joueurs...
-                </p>
+          {players.map((p) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/90 text-blue-900 py-2 px-4 rounded-xl shadow flex justify-between items-center"
+            >
+              <span className="font-medium">
+                {p.firstName} {p.lastName}
+              </span>
+
+              {p.id === ownerId && (
+                <span className="text-xs font-bold bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full">
+                  Chef
+                </span>
               )}
+            </motion.div>
+          ))}
+        </div>
 
-              {players.map((p) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="bg-white/90 text-blue-900 py-2 px-4 rounded-xl shadow flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
-                      {p.firstName[0]}
-                    </div>
-                    <span className="font-medium">
-                      {p.firstName} {p.lastName}
-                    </span>
-                  </div>
-
-                  {p.id === ownerId && (
-                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-yellow-400 text-yellow-900">
-                      Chef
-                    </span>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Bouton Start */}
-            <div className="mt-8">
-              {isOwner ? (
-                <>
-                  <p className="mb-2 text-sm opacity-80">
-                    Tu es le chef du salon. Lance la partie quand tout le monde
-                    est prêt.
-                  </p>
-
-                  <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    whileHover={{ scale: 1.04 }}
-                    onClick={handleStart}
-                    className="w-full bg-green-400 hover:bg-green-500 text-green-900 font-bold py-3 rounded-xl shadow-lg"
-                  >
-                    Lancer la partie
-                  </motion.button>
-                </>
-              ) : (
-                <p className="text-sm opacity-80">
-                  En attente que le chef du salon lance la partie...
-                </p>
-              )}
-            </div>
-          </>
-        )}
+        {/* BOUTON LANCER */}
+        <div className="mt-8">
+          {isOwner ? (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={handleStart}
+              className="w-full bg-green-400 hover:bg-green-500 text-green-900 py-3 rounded-xl font-semibold shadow-lg"
+            >
+              Lancer la partie
+            </motion.button>
+          ) : (
+            <p className="text-sm opacity-70">
+              En attente que le chef lance la partie…
+            </p>
+          )}
+        </div>
       </motion.div>
     </div>
   );
