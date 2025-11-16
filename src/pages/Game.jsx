@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useParams } from "react-router-dom";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:4000");
+const socket = io("https://qr-game-backend.onrender.com");
 
 const QUESTION_PHASES = {
   THINK: "THINK",
