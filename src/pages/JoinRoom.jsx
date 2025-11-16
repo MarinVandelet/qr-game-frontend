@@ -11,7 +11,7 @@ export default function JoinRoom() {
 
   const handleJoin = async () => {
     try {
-      const res = await axios.post("http://localhost:4000/api/room/join", {
+      const res = await axios.post("https://qr-game-backend.onrender.com/api/room/join", {
         playerId,
         code: roomCode,
       });
