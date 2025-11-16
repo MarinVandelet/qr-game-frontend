@@ -5,7 +5,7 @@ import { FiCopy } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:4000");
+const socket = io("https://qr-game-backend.onrender.com");
 
 export default function WaitingRoom() {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ export default function WaitingRoom() {
   const fetchPlayers = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:4000/api/room/players/${code}`
+        `https://qr-game-backend.onrender.com/api/room/players/${code}`
       );
       setPlayers(res.data.players || []);
       setOwnerId(res.data.ownerId);
