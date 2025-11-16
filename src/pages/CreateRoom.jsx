@@ -3,7 +3,10 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FiCopy } from "react-icons/fi";
+import { io } from "socket.io-client";
 
+// IMPORTANT : socket global
+const socket = io("https://qr-game-backend.onrender.com");
 
 export default function CreateRoom() {
   const [roomCode, setRoomCode] = useState(null);
@@ -14,11 +17,17 @@ export default function CreateRoom() {
   const handleCreateRoom = async () => {
     setLoading(true);
 
-    const res = await axios.post("https://qr-game-backend.onrender.com/api/room/create", {
-      playerId,
-    });
+    const res = await axios.post(
+      "https://qr-game-backend.onrender.com/api/room/create",
+      { playerId }
+    );
 
-    setRoomCode(res.data.code);
+    const code = res.data.code;
+    setRoomCode(code);
+
+    // ⭐ Le créateur rejoint aussi la room via socket.io
+    socket.emit("joinRoom", code);
+
     setLoading(false);
   };
 
@@ -31,7 +40,6 @@ export default function CreateRoom() {
       >
         <h1 className="text-3xl font-bold mb-6">Créer un Salon</h1>
 
-        {/* Si le salon n’est pas encore créé */}
         {!roomCode && (
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -44,27 +52,26 @@ export default function CreateRoom() {
           </motion.button>
         )}
 
-        {/* Si le salon est créé → montrer le code */}
         {roomCode && (
           <motion.div
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8">
-                
+            className="mt-8"
+          >
             <p className="text-xl">Code du salon :</p>
+
             <div className="flex items-center justify-center gap-3 mt-2">
               <p className="text-5xl font-bold tracking-widest">{roomCode}</p>
 
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => navigator.clipboard.writeText(roomCode)}
-                  className="bg-white text-blue-900 p-2 rounded-lg shadow hover:bg-blue-100 flex items-center justify-center"
-                  title="Copier le code"
-                >
-                  <FiCopy size={22} />
-                </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigator.clipboard.writeText(roomCode)}
+                className="bg-white text-blue-900 p-2 rounded-lg shadow hover:bg-blue-100 flex items-center justify-center"
+                title="Copier le code"
+              >
+                <FiCopy size={22} />
+              </motion.button>
             </div>
-
 
             <motion.button
               whileTap={{ scale: 0.95 }}
