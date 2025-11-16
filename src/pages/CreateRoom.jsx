@@ -14,7 +14,7 @@ export default function CreateRoom() {
   const handleCreateRoom = async () => {
     setLoading(true);
 
-    const res = await axios.post("http://localhost:4000/api/room/create", {
+    const res = await axios.post("https://qr-game-backend.onrender.com/api/room/create", {
       playerId,
     });
 
